@@ -96,13 +96,14 @@ python main.py --config configs/config.yaml
 
 ## 7. References & Acknowledgements
 
-This implementation is **based on and inspired by the open-access research paper**:
+This work is based on the open-access research paper:
 
-> Sai Babu Veesam, B. Tarakeswara Rao, Zarina Begum, R. S. M. Lakshmi Patibandla,
-> Arvin Arun Dcosta, Shonak Bansal, Krishna Prakash, Mohammad Rashed Iqbal Faruque,
-> & K. S. Al-mugren.
-> *Multi-Camera Spatiotemporal Deep Learning Framework for Real-Time Abnormal Behavior Detection in Dense Urban Environments.* (2025).
-> DOI/Link: [Insert DOI or Link]
+> Sai Babu Veesam, B. Tarakeswara Rao, Zarina Begum, R. S. M. Lakshmi Patibandla,  
+> Arvin Arun Dcosta, Shonak Bansal, Krishna Prakash, Mohammad Rashed Iqbal Faruque,  
+> & K. S. Al-mugren.  
+> *Multi-Camera Spatiotemporal Deep Learning Framework for Real-Time Abnormal Behavior Detection in Dense Urban Environments.* (2025).  
+> DOI: [https://doi.org/10.1038/s41598-025-12388-7](https://doi.org/10.1038/s41598-025-12388-7)
+
 
 We have adapted and paraphrased the problem statement, methodology descriptions, and performance metrics for educational and implementation purposes while retaining attribution to the original authors.
 
@@ -125,20 +126,6 @@ If you use this work in your research, please cite:
   year={2025}
 }
 ```
-
-
-
-
-## References & Acknowledgements
-
-This work is based on the open-access research paper:
-
-> Sai Babu Veesam, B. Tarakeswara Rao, Zarina Begum, R. S. M. Lakshmi Patibandla,  
-> Arvin Arun Dcosta, Shonak Bansal, Krishna Prakash, Mohammad Rashed Iqbal Faruque,  
-> & K. S. Al-mugren.  
-> *Multi-Camera Spatiotemporal Deep Learning Framework for Real-Time Abnormal Behavior Detection in Dense Urban Environments.* (2025).  
-> DOI: [https://doi.org/10.1038/s41598-025-12388-7](https://doi.org/10.1038/s41598-025-12388-7)
-
 
 
 
