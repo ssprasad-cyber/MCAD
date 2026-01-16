@@ -29,6 +29,7 @@ while True:
     # Controlled pop (simulate next stage)
     for cam_id, buffer in buffers.items():
         frame_pkt = buffer.latest()
+        
         if frame_pkt:
             cv2.imshow(cam_id, frame_pkt["frame"])
 
