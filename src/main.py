@@ -10,7 +10,8 @@ import time, cv2
 
 camera_configs = [
     {"id": "cam1", "type": "file", "path": "data/raw/sample.mp4"},
-    {"id": "cam2", "type": "webcam", "index": 0}
+    {"id": "cam2", "type": "webcam", "index": 0},
+    {"id": "mobile_cam","type": "mobile","url": "http://10.27.196.235:8080/video"},
 ]
 
 cameras = [create_camera(cfg) for cfg in camera_configs]
