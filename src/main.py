@@ -3,6 +3,9 @@ from camera_layer.camera_manager import CameraManager
 from edge_processing.frame_capture.frame_packet import FramePacket
 from edge_processing.frame_capture.frame_dispatcher import FrameDispatcher
 from edge_processing.frame_capture.fps_controller import FPSController
+from edge_processing.detection.yolov8_detector import YOLOv8Detector
+from edge_processing.detection.detection_manager import DetectionManager
+
 import time, cv2
 
 camera_configs = [
@@ -20,6 +23,9 @@ dispatcher = FrameDispatcher(
 
 fps = FPSController(target_fps=10)
 
+detector = YOLOv8Detector("yolov8n.pt")
+detect_mgr = DetectionManager(detector)
+
 while True:
     packets = manager.read_all()
 
@@ -34,9 +40,15 @@ while True:
         synced_frames = dispatcher.pull_latest()
 
     for cam_id, pkt in synced_frames.items():
+        det_pkt = detect_mgr.process(pkt)
+
+        for det in det_pkt.detections:
+            x1, y1, x2, y2 = map(int, det["bbox"])
+            cv2.rectangle(pkt.frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
+
         cv2.imshow(cam_id, pkt.frame)
 
-    fps.wait()
+    fps.sync()
 
 
     if cv2.waitKey(1) & 0xFF == ord('q'):
