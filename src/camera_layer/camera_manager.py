@@ -5,9 +5,9 @@ class CameraManager:
     def read_all(self):
         packets = []
         for cam in self.cameras:
-            data = cam.read()
-            if data is not None:
-                packets.append(data)
+            pkt = cam.read()
+            if pkt is not None:
+                packets.append(pkt)
         return packets
 
     def release_all(self):

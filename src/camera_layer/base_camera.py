@@ -6,9 +6,13 @@ class BaseCamera(ABC):
 
     @abstractmethod
     def read(self):
-        """Return FramePacket or None"""
+        """
+        Returns:
+            FramePacket dict OR None if frame not available
+        """
         pass
 
     @abstractmethod
     def release(self):
+        """Release camera resources"""
         pass
