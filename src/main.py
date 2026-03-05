@@ -17,6 +17,11 @@ from edge_processing.pose_estimation.pose_manager import PoseManager
 from edge_processing.reid.appearance_encoder import AppearanceEncoder
 from edge_processing.reid.global_identity_manager import GlobalIdentityManager
 
+from edge_processing.graph.graph_manager import GraphManager
+
+from edge_processing.temporal.temporal_memory import TemporalMemory
+from edge_processing.temporal.temporal_manager import TemporalManager
+
 import cv2
 
 
@@ -79,6 +84,19 @@ encoder = AppearanceEncoder()
 global_id_mgr = GlobalIdentityManager()
 
 
+# -------------------------------------------------
+# Graph Construction
+# -------------------------------------------------
+graph_mgr = GraphManager()
+
+
+# -------------------------------------------------
+# Temporal Memory
+# -------------------------------------------------
+temporal_memory = TemporalMemory(window_size=10)
+temporal_mgr = TemporalManager(temporal_memory)
+
+
 print("MCAD Pipeline Started")
 print("Press 'q' to exit\n")
 
@@ -88,7 +106,7 @@ try:
     while True:
 
         # -----------------------------------------
-        # Read frames from cameras
+        # Read frames
         # -----------------------------------------
         packets = manager.read_all()
 
@@ -112,8 +130,6 @@ try:
         for cam_id, pkt in synced_frames.items():
 
             frame = pkt.frame
-
-            # list for graph stage later
             people = []
 
 
@@ -145,13 +161,12 @@ try:
 
 
             # -------------------------------------
-            # Draw Tracks
+            # Process Tracks
             # -------------------------------------
             for track in track_pkt.tracks:
 
                 x1, y1, x2, y2 = map(int, track["bbox"])
 
-                # padding improves pose + reid
                 pad = 15
                 x1 = max(0, x1 - pad)
                 y1 = max(0, y1 - pad)
@@ -165,7 +180,7 @@ try:
 
 
                 # ---------------------------------
-                # ReID embedding
+                # ReID
                 # ---------------------------------
                 embedding = encoder.extract(crop)
                 global_id = global_id_mgr.assign(embedding)
@@ -173,7 +188,9 @@ try:
                 local_id = track["track_id"]
 
 
-                # center for graph stage
+                # ---------------------------------
+                # Graph node data
+                # ---------------------------------
                 cx = (x1 + x2) // 2
                 cy = (y1 + y2) // 2
 
@@ -183,17 +200,11 @@ try:
                 })
 
 
-                # draw bbox
-                cv2.rectangle(
-                    frame,
-                    (x1, y1),
-                    (x2, y2),
-                    (0, 255, 0),
-                    2
-                )
+                # ---------------------------------
+                # Draw bbox
+                # ---------------------------------
+                cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
 
-
-                # label
                 cv2.putText(
                     frame,
                     f"L{local_id} | G{global_id}",
@@ -201,6 +212,35 @@ try:
                     cv2.FONT_HERSHEY_SIMPLEX,
                     0.6,
                     (0, 255, 0),
+                    2
+                )
+
+
+            # -------------------------------------
+            # Build Interaction Graph
+            # -------------------------------------
+            graph = graph_mgr.process(people)
+
+
+            # -------------------------------------
+            # Update Temporal Memory
+            # -------------------------------------
+            sequence = temporal_mgr.process(graph)
+
+
+            # -------------------------------------
+            # Draw Graph Edges
+            # -------------------------------------
+            for edge in graph["edges"]:
+
+                p1 = next(p for p in people if p["gid"] == edge["source"])
+                p2 = next(p for p in people if p["gid"] == edge["target"])
+
+                cv2.line(
+                    frame,
+                    p1["center"],
+                    p2["center"],
+                    (255, 0, 0),
                     2
                 )
 
@@ -225,7 +265,7 @@ try:
 
 
         # -----------------------------------------
-        # FPS sync
+        # FPS control
         # -----------------------------------------
         fps.sync()
 
