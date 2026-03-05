@@ -3,6 +3,10 @@ from typing import List
 
 @dataclass
 class DetectionPacket:
-    camera_id: str
-    timestamp: float
-    detections: List[dict]
+
+    def __init__(self, camera_id, frame, detections, timestamp):
+
+        self.camera_id = camera_id
+        self.frame = frame
+        self.detections = detections
+        self.timestamp = timestamp

@@ -8,7 +8,7 @@ from edge_processing.frame_capture.fps_controller import FPSController
 from edge_processing.detection.yolov8_detector import YOLOv8Detector
 from edge_processing.detection.detection_manager import DetectionManager
 
-from edge_processing.tracking.simple_tracker import SimpleTracker
+from edge_processing.tracking.deepsort_tracker import DeepSortTracker
 from edge_processing.tracking.tracking_manager import TrackingManager
 
 from edge_processing.pose_estimation.mediapipe_pose import MediaPipePose
@@ -18,11 +18,19 @@ from edge_processing.reid.appearance_encoder import AppearanceEncoder
 from edge_processing.reid.global_identity_manager import GlobalIdentityManager
 
 from edge_processing.graph.graph_manager import GraphManager
+from edge_processing.graph.motion_memory import MotionMemory
 
 from edge_processing.temporal.temporal_memory import TemporalMemory
 from edge_processing.temporal.temporal_manager import TemporalManager
 
+from edge_processing.gnn.msgat_manager import MSGATManager
+
+import threading
 import cv2
+
+from utils.camera_worker import camera_worker
+from utils.processing_worker import processing_worker
+from utils.display_worker import display_worker
 
 
 # -------------------------------------------------
@@ -66,7 +74,7 @@ detect_mgr = DetectionManager(detector)
 # -------------------------------------------------
 # Tracking
 # -------------------------------------------------
-tracker = SimpleTracker()
+tracker = DeepSortTracker()
 tracking_mgr = TrackingManager(tracker)
 
 
@@ -88,6 +96,7 @@ global_id_mgr = GlobalIdentityManager()
 # Graph Construction
 # -------------------------------------------------
 graph_mgr = GraphManager()
+motion_memory = MotionMemory()
 
 
 # -------------------------------------------------
@@ -96,182 +105,29 @@ graph_mgr = GraphManager()
 temporal_memory = TemporalMemory(window_size=10)
 temporal_mgr = TemporalManager(temporal_memory)
 
+# -------------------------------------------------
+# GNN Model
+# -------------------------------------------------
+msgat_mgr = MSGATManager()
+
+
 
 print("MCAD Pipeline Started")
 print("Press 'q' to exit\n")
 
 
 try:
+    t1 = threading.Thread(target=camera_worker, args=(manager,))
+    t2 = threading.Thread(target=processing_worker, args=(detect_mgr, tracking_mgr, pose_mgr, msgat_mgr))
+    t3 = threading.Thread(target=display_worker)
 
-    while True:
+    t1.start()
+    t2.start()
+    t3.start()
 
-        # -----------------------------------------
-        # Read frames
-        # -----------------------------------------
-        packets = manager.read_all()
-
-        for pkt in packets:
-
-            frame_packet = FramePacket(
-                camera_id=pkt["camera_id"],
-                frame=pkt["frame"],
-                timestamp=pkt["timestamp"]
-            )
-
-            dispatcher.push(frame_packet)
-
-
-        # -----------------------------------------
-        # Synchronize frames
-        # -----------------------------------------
-        synced_frames = dispatcher.pull_latest()
-
-
-        for cam_id, pkt in synced_frames.items():
-
-            frame = pkt.frame
-            people = []
-
-
-            # -------------------------------------
-            # Detection
-            # -------------------------------------
-            det_pkt = detect_mgr.process(pkt)
-
-
-            # -------------------------------------
-            # Filter persons only
-            # -------------------------------------
-            det_pkt.detections = [
-                d for d in det_pkt.detections
-                if d["class_name"] == "person" and d["confidence"] > 0.5
-            ]
-
-
-            # -------------------------------------
-            # Tracking
-            # -------------------------------------
-            track_pkt = tracking_mgr.process(det_pkt)
-
-
-            # -------------------------------------
-            # Pose
-            # -------------------------------------
-            pose_pkt = pose_mgr.process(track_pkt, frame)
-
-
-            # -------------------------------------
-            # Process Tracks
-            # -------------------------------------
-            for track in track_pkt.tracks:
-
-                x1, y1, x2, y2 = map(int, track["bbox"])
-
-                pad = 15
-                x1 = max(0, x1 - pad)
-                y1 = max(0, y1 - pad)
-                x2 = min(frame.shape[1], x2 + pad)
-                y2 = min(frame.shape[0], y2 + pad)
-
-                crop = frame[y1:y2, x1:x2]
-
-                if crop.size == 0:
-                    continue
-
-
-                # ---------------------------------
-                # ReID
-                # ---------------------------------
-                embedding = encoder.extract(crop)
-                global_id = global_id_mgr.assign(embedding)
-
-                local_id = track["track_id"]
-
-
-                # ---------------------------------
-                # Graph node data
-                # ---------------------------------
-                cx = (x1 + x2) // 2
-                cy = (y1 + y2) // 2
-
-                people.append({
-                    "gid": global_id,
-                    "center": (cx, cy)
-                })
-
-
-                # ---------------------------------
-                # Draw bbox
-                # ---------------------------------
-                cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
-
-                cv2.putText(
-                    frame,
-                    f"L{local_id} | G{global_id}",
-                    (x1, y1 - 10),
-                    cv2.FONT_HERSHEY_SIMPLEX,
-                    0.6,
-                    (0, 255, 0),
-                    2
-                )
-
-
-            # -------------------------------------
-            # Build Interaction Graph
-            # -------------------------------------
-            graph = graph_mgr.process(people)
-
-
-            # -------------------------------------
-            # Update Temporal Memory
-            # -------------------------------------
-            sequence = temporal_mgr.process(graph)
-
-
-            # -------------------------------------
-            # Draw Graph Edges
-            # -------------------------------------
-            for edge in graph["edges"]:
-
-                p1 = next(p for p in people if p["gid"] == edge["source"])
-                p2 = next(p for p in people if p["gid"] == edge["target"])
-
-                cv2.line(
-                    frame,
-                    p1["center"],
-                    p2["center"],
-                    (255, 0, 0),
-                    2
-                )
-
-
-            # -------------------------------------
-            # Draw Pose
-            # -------------------------------------
-            for pose in pose_pkt.poses:
-
-                for x, y in pose["keypoints"]:
-
-                    px = int(x * frame.shape[1])
-                    py = int(y * frame.shape[0])
-
-                    cv2.circle(frame, (px, py), 3, (0, 0, 255), -1)
-
-
-            # -------------------------------------
-            # Display
-            # -------------------------------------
-            cv2.imshow(cam_id, frame)
-
-
-        # -----------------------------------------
-        # FPS control
-        # -----------------------------------------
-        fps.sync()
-
-
-        if cv2.waitKey(1) & 0xFF == ord("q"):
-            break
+    t1.join()
+    t2.join()
+    t3.join()
 
 
 except KeyboardInterrupt:
