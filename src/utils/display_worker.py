@@ -1,23 +1,45 @@
 import cv2
 from utils.pipeline_queue import result_queue
 from queue import Empty
+import time
+
+
+SIREN_ALERTS = {"fall", "fight", "fighting"}
+SIREN_COOLDOWN_SECONDS = 2.0
+
+
+def _ring_siren():
+    print("\a", end="", flush=True)
 
 
 def display_worker():
+    last_siren_at = 0.0
 
     while True:
         try:
-            cam_id, frame, anomaly = result_queue.get(timeout=0.05)
+            payload = result_queue.get(timeout=0.05)
         except Empty:
             if cv2.waitKey(1) & 0xFF == ord("q"):
                 break
             continue
 
+        if len(payload) == 4:
+            cam_id, frame, anomaly, detected_alerts = payload
+        else:
+            cam_id, frame, anomaly = payload
+            detected_alerts = []
+
         while True:
             try:
-                cam_id, frame, anomaly = result_queue.get_nowait()
+                payload = result_queue.get_nowait()
             except Empty:
                 break
+
+            if len(payload) == 4:
+                cam_id, frame, anomaly, detected_alerts = payload
+            else:
+                cam_id, frame, anomaly = payload
+                detected_alerts = []
 
         cv2.putText(
             frame,
@@ -28,6 +50,30 @@ def display_worker():
             (0,0,255),
             2
         )
+
+        active_siren_alerts = sorted(
+            {
+                str(alert).strip().lower()
+                for alert in detected_alerts
+                if str(alert).strip().lower() in SIREN_ALERTS
+            }
+        )
+
+        if active_siren_alerts:
+            cv2.putText(
+                frame,
+                f"ALERT: {', '.join(active_siren_alerts).upper()}",
+                (20, 80),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                0.8,
+                (0, 0, 255),
+                2
+            )
+
+            now = time.time()
+            if now - last_siren_at >= SIREN_COOLDOWN_SECONDS:
+                _ring_siren()
+                last_siren_at = now
 
         cv2.imshow(cam_id, frame)
 

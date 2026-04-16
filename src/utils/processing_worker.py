@@ -4,6 +4,9 @@ from edge_processing.graph.motion_memory import MotionMemory
 from queue import Empty, Full
 
 
+ALERT_CLASSES = {"fall", "fight", "fighting"}
+
+
 def processing_worker(
         detect_mgr,
         tracking_mgr,
@@ -26,9 +29,18 @@ def processing_worker(
                 break
 
         det_pkt = detect_mgr.process(pkt)
+
+        detected_alerts = sorted(
+            {
+                str(d.get("class_name", "")).strip().lower()
+                for d in det_pkt.detections
+                if str(d.get("class_name", "")).strip().lower() in ALERT_CLASSES
+            }
+        )
+
         det_pkt.detections = [
             d for d in det_pkt.detections
-            if d["class_name"] == "person" and d["confidence"] > 0.5
+            if str(d.get("class_name", "")).strip().lower() == "person" and d["confidence"] > 0.5
         ]
 
         track_pkt = tracking_mgr.process(det_pkt)
@@ -54,7 +66,7 @@ def processing_worker(
 
         anomaly_score = msgat_mgr.predict(graph, people)
 
-        output = (pkt.camera_id, pkt.frame, anomaly_score)
+        output = (pkt.camera_id, pkt.frame, anomaly_score, detected_alerts)
         try:
             result_queue.put_nowait(output)
         except Full:
