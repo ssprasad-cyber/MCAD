@@ -59,7 +59,8 @@ def processing_worker(
             people.append({
                 "gid": gid,
                 "center": (cx, cy),
-                "velocity": (vx, vy)
+                "velocity": (vx, vy),
+                "bbox_size": (x2 - x1) * (y2 - y1)
             })
 
         graph = graph_mgr.process(people)

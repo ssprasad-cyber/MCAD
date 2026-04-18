@@ -1,5 +1,12 @@
 numpy<2
 torch
+torchvision
 ultralytics
 mediapipe
 opencv-python
+deep-sort-realtime
+torch-geometric
+torch-scatter
+torch-sparse
+scikit-learn
+tqdm

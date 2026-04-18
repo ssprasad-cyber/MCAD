@@ -13,8 +13,9 @@ class TrackingManager:
             detection_packet.frame
         )
 
-        return type("TrackPacket", (), {
-            "tracks": tracks,
-            "camera_id": detection_packet.camera_id,
-            "timestamp": detection_packet.timestamp
-        })
+        return TrackPacket(
+            tracks=tracks,
+            camera_id=detection_packet.camera_id,
+            timestamp=detection_packet.timestamp,
+            frame=detection_packet.frame
+        )

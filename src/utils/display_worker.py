@@ -41,13 +41,19 @@ def display_worker():
                 cam_id, frame, anomaly = payload
                 detected_alerts = []
 
+        # Colour-coded anomaly score bar
+        bar_color = (0, 200, 0) if anomaly < 0.4 else (0, 140, 255) if anomaly < 0.7 else (0, 0, 255)
+        h, w = frame.shape[:2]
+        bar_w = int(anomaly * min(w // 3, 200))
+        cv2.rectangle(frame, (20, 20), (20 + min(w // 3, 200), 44), (50, 50, 50), -1)
+        cv2.rectangle(frame, (20, 20), (20 + bar_w, 44), bar_color, -1)
         cv2.putText(
             frame,
-            f"Anomaly {anomaly:.2f}",
-            (20,40),
+            f"Anomaly: {anomaly:.2f}",
+            (20, 65),
             cv2.FONT_HERSHEY_SIMPLEX,
-            0.8,
-            (0,0,255),
+            0.7,
+            bar_color,
             2
         )
 
